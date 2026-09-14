@@ -12,7 +12,7 @@ pub const CONFIG_PATH: &str = "openspec/reviewer.toml";
 /// under them. Anything outside these lists is not a citation target the
 /// lint knows what to do with.
 pub const CANDIDATE_ROOTS: &[&str] = &[
-    "src", "lib", "apps", "packages", "crates", "services", "tests", "test",
+    "src", "lib", "apps", "packages", "crates", "services", "tests", "test", ".claude", ".agents",
 ];
 pub const CANDIDATE_EXTENSIONS: &[&str] = &[
     "rs", "ts", "tsx", "js", "mjs", "mts", "py", "go", "ex", "exs", "heex", "md", "json", "yaml",
@@ -83,6 +83,12 @@ test_pattern    = "bug__\\w+"
 
 [term_drift]
 max_common = 5
+
+# The glossary capability and how often an undefined span must recur.
+# An empty capability switches the glossary checks off.
+[definitions]
+capability     = "definitions"
+min_recurrence = 3
 "#,
         roots = toml_list(survey.roots.iter().cloned()),
         globs = toml_list(
@@ -105,6 +111,37 @@ pub struct Config {
     pub lint: Lint,
     #[serde(default)]
     pub term_drift: TermDrift,
+    #[serde(default)]
+    pub definitions: Definitions,
+}
+
+/// `[definitions]`: which capability is the glossary and how often a span
+/// must recur before the lint suggests defining it. Absent means defaults,
+/// never a refusal.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Definitions {
+    #[serde(default = "default_capability")]
+    pub capability: String,
+    #[serde(default = "default_min_recurrence")]
+    pub min_recurrence: usize,
+}
+
+fn default_capability() -> String {
+    crate::glossary::DEFAULT_CAPABILITY.to_string()
+}
+
+fn default_min_recurrence() -> usize {
+    crate::glossary::DEFAULT_MIN_RECURRENCE
+}
+
+impl Default for Definitions {
+    fn default() -> Definitions {
+        Definitions {
+            capability: default_capability(),
+            min_recurrence: default_min_recurrence(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
